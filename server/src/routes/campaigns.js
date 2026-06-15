@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getCampaigns, getCampaignStats, deleteCampaign, generateCampaign, saveAndLaunchCampaign, debugCampaignLogs } = require('../controllers/campaignController');
+const { getCampaigns, getCampaignStats, deleteCampaign, generateCampaign, saveAndLaunchCampaign, debugCampaignLogs, retryCampaignDelivery } = require('../controllers/campaignController');
 
 router.get('/', getCampaigns);
 router.get('/:id/stats', getCampaignStats);
 router.get('/:id/debug', debugCampaignLogs);
+router.post('/:id/retry', retryCampaignDelivery);
 router.delete('/:id', deleteCampaign);
 router.post('/generate', generateCampaign);
 router.post('/launch', saveAndLaunchCampaign);

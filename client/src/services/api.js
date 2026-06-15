@@ -10,6 +10,7 @@ export const deleteCustomer = (id) => axios.delete(`${API_URL}/customers/${id}`)
 export const getCampaigns = () => axios.get(`${API_URL}/campaigns`);
 export const getCampaignStats = (id) => axios.get(`${API_URL}/campaigns/${id}/stats`);
 export const deleteCampaign = (id) => axios.delete(`${API_URL}/campaigns/${id}`);
+export const retryCampaign = (id) => axios.post(`${API_URL}/campaigns/${id}/retry`);
 
 export const buildSegment = (prompt) => axios.post(`${API_URL}/segments/build`, { prompt });
 export const generateCampaignContent = (goal) => axios.post(`${API_URL}/campaigns/generate`, { goal });

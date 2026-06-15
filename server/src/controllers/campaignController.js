@@ -122,6 +122,60 @@ exports.deleteCampaign = async (req, res) => {
   }
 };
 
+exports.retryCampaignDelivery = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
+
+    const pendingLogs = await CommunicationLog.find({
+      campaignId: campaign._id,
+      status: 'Pending',
+    });
+
+    if (pendingLogs.length === 0) {
+      return res.json({ message: 'No pending logs to retry', resolved: 0 });
+    }
+
+    const { clearCache } = require('../services/inMemoryCache');
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // Re-queue all pending logs through the simulator
+    const { addToQueue } = require('../services/inMemoryQueue');
+    pendingLogs.forEach(log => {
+      addToQueue(async () => {
+        const delay = Math.floor(Math.random() * 1500) + 500;
+        await sleep(delay);
+
+        const rand = Math.random() * 100;
+        let status;
+        if      (rand < 10) status = 'Failed';
+        else if (rand < 30) status = 'Delivered';
+        else if (rand < 65) status = 'Opened';
+        else if (rand < 85) status = 'Read';
+        else if (rand < 95) status = 'Clicked';
+        else                status = 'Converted';
+
+        await CommunicationLog.findByIdAndUpdate(log._id, { status });
+        clearCache('analytics_dashboard');
+
+        const stillPending = await CommunicationLog.countDocuments({
+          campaignId: campaign._id, status: 'Pending',
+        });
+        if (stillPending === 0) {
+          await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
+        }
+      });
+    });
+
+    // Mark campaign Running so the client starts polling again
+    await Campaign.findByIdAndUpdate(campaign._id, { status: 'Running' });
+
+    res.json({ message: `Retrying delivery for ${pendingLogs.length} pending messages`, resolved: pendingLogs.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.debugCampaignLogs = async (req, res) => {
   try {
     const campaign = await Campaign.findById(req.params.id).lean();
