@@ -137,8 +137,8 @@ exports.getCampaignStats = async (req, res) => {
     const failed = stats.Failed || 0;
     const pending = stats.Pending || 0;
 
-    // Auto-complete: mark campaign as Completed when no messages are Pending
-    if (campaign.status === 'Running' && sent > 0 && pending === 0) {
+    // Auto-complete: only when ALL audience logs exist AND none are Pending
+    if (campaign.status === 'Running' && sent >= campaign.audienceCount && campaign.audienceCount > 0 && pending === 0) {
       await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
       campaign.status = 'Completed';
     }
@@ -166,62 +166,45 @@ exports.getCampaignStats = async (req, res) => {
 
 // Simulate delivery locally — same probability logic as the channel service
 // Used as fallback when CHANNEL_SERVICE_URL is not set (avoids localhost calls in production)
-// const simulateDelivery = (logId) => {
-//   const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds
-//   setTimeout(async () => {
-//     const rand = Math.random() * 100;
-//     let status;
-//     if      (rand < 10) status = 'Failed';
-//     else if (rand < 30) status = 'Delivered';
-//     else if (rand < 65) status = 'Opened';
-//     else if (rand < 85) status = 'Read';
-//     else if (rand < 95) status = 'Clicked';
-//     else                status = 'Converted';
-
-//     try {
-//       const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { returnDocument: 'after' });
-//       if (log) {
-//         const pendingCount = await CommunicationLog.countDocuments({
-//           campaignId: log.campaignId, status: 'Pending'
-//         });
-//         if (pendingCount === 0) {
-//           await Campaign.findByIdAndUpdate(log.campaignId, { status: 'Completed' });
-//         }
-//       }
-//     } catch (err) {
-//       console.error('[Simulator] Failed to update log:', err.message);
-//     }
-//   }, delay);
-// };
 const simulateDelivery = (logId) => {
   const delay = Math.floor(Math.random() * 3000) + 2000;
 
-  console.log("Simulator started for:", logId);
-
   setTimeout(async () => {
     const rand = Math.random() * 100;
-
     let status;
-    if (rand < 10) status = 'Failed';
+    if      (rand < 10) status = 'Failed';
     else if (rand < 30) status = 'Delivered';
     else if (rand < 65) status = 'Opened';
     else if (rand < 85) status = 'Read';
     else if (rand < 95) status = 'Clicked';
-    else status = 'Converted';
+    else                status = 'Converted';
 
     try {
-      console.log("Updating", logId, "to", status);
-
+      // Update this log's status
       const updatedLog = await CommunicationLog.findByIdAndUpdate(
         logId,
         { status },
-        { new: true } // use new:true instead
+        { returnDocument: 'after' }
       );
 
-      console.log("Updated Log:", updatedLog);
+      if (!updatedLog) return;
 
+      // Clear analytics cache so dashboard reflects new data
+      const { clearCache } = require('../services/inMemoryCache');
+      clearCache('analytics_dashboard');
+
+      // Check if all logs for this campaign are resolved (no more Pending)
+      const pendingCount = await CommunicationLog.countDocuments({
+        campaignId: updatedLog.campaignId,
+        status: 'Pending',
+      });
+
+      if (pendingCount === 0) {
+        await Campaign.findByIdAndUpdate(updatedLog.campaignId, { status: 'Completed' });
+        console.log(`[Simulator] Campaign ${updatedLog.campaignId} marked Completed`);
+      }
     } catch (err) {
-      console.error("Simulator Error:", err);
+      console.error('[Simulator] Failed to update log:', err.message);
     }
   }, delay);
 };
