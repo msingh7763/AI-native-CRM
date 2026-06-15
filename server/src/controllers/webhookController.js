@@ -37,7 +37,7 @@ exports.handleReceipt = async (req, res) => {
       return res.status(400).json({ message: 'logId and status are required' });
     }
 
-    const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { new: true });
+    const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { returnDocument: 'after' });
     
     if (!log) {
       return res.status(404).json({ message: 'Log not found' });

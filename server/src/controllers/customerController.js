@@ -39,7 +39,7 @@ exports.addCustomer = async (req, res) => {
 
 exports.updateCustomer = async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     if (!customer) return res.status(404).json({ message: 'Customer not found' });
     res.json(customer);
   } catch (error) {
