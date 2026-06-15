@@ -1,188 +1,194 @@
 import React, { useState } from 'react';
 import { buildSegment, generateCampaignContent, launchCampaign } from '../services/api';
-import { Sparkles, Send, Target, MessageSquare, AlertCircle } from 'lucide-react';
+import { Sparkles, Send, Target, MessageSquare, AlertCircle, Edit3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const inputCls = `w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-colors`;
+const inputStyle = { background:'#FFF8F4', borderColor:'#F1E3DA', color:'#2D2A26' };
+
+const CHANNELS = ['Email','WhatsApp','SMS','RCS'];
 
 const CampaignBuilder = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const segmentFromAudience = location.state?.segmentQuery;
-  const [goal, setGoal] = useState(location.state?.segmentPrompt || '');
+  const [goal, setGoal]       = useState(location.state?.segmentPrompt || '');
   const [loading, setLoading] = useState(false);
-  const [launching, setLaunching] = useState(false);
+  const [launching, setLaunch]= useState(false);
   const [campaign, setCampaign] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
 
   const handleGenerate = async () => {
-    if (!goal) return;
-    setLoading(true);
-    setError('');
+    if (!goal.trim()) return;
+    setLoading(true); setError('');
     try {
       const res = await generateCampaignContent(goal);
       setCampaign(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error generating campaign. Make sure the server is running.');
-    } finally {
-      setLoading(false);
-    }
+      setError(err.response?.data?.message || 'Error generating campaign. Is the server running?');
+    } finally { setLoading(false); }
   };
 
   const handleLaunch = async () => {
-    setLaunching(true);
-    setError('');
+    setLaunch(true); setError('');
     try {
       let targetSegment = segmentFromAudience;
       if (!targetSegment) {
-        const segmentResponse = await buildSegment(campaign.targetSegmentDescription);
-        targetSegment = segmentResponse?.data?.query;
+        const segRes = await buildSegment(campaign.targetSegmentDescription);
+        targetSegment = segRes?.data?.query;
       }
-
-      await launchCampaign({
-        name: campaign.name,
-        goal,
-        subjectLine: campaign.subjectLine,
-        message: campaign.message,
-        channel: campaign.recommendedChannel,
-        targetSegment
-      });
+      await launchCampaign({ name:campaign.name, goal, subjectLine:campaign.subjectLine,
+        message:campaign.message, channel:campaign.recommendedChannel, targetSegment });
       navigate('/campaigns');
     } catch (err) {
-      setError(err.response?.data?.message || 'Error launching campaign. Make sure the server is running.');
-    } finally {
-      setLaunching(false);
-    }
+      setError(err.response?.data?.message || 'Error launching campaign. Is the server running?');
+    } finally { setLaunch(false); }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold dark:text-black">AI Campaign Builder</h1>
-        <p className="dark:text-black-800">Tell AI what you want to achieve, and it will craft the perfect campaign.</p>
-      </div>
+    <div className="max-w-3xl space-y-6 page-enter">
 
       {!campaign ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-red-100 dark:border-gray-700 text-center">
-          <div className="w-16 h-16 bg-red-100 dark:bg-gray-800/50 rounded-full flex items-center justify-center mx-auto mb-6 text-white">
-            <Target size={32} className="dark:" />
+        /* ── Goal input ── */
+        <div className="rounded-2xl border p-8 text-center" style={{ background:'#fff', borderColor:'#F1E3DA' }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
+            style={{ background:'linear-gradient(135deg,#FFD6C8,#FFF1E8)' }}>
+            <Target size={30} style={{ color:'#F28C6F' }} />
           </div>
-          <h2 className="text-xl font-bold dark: mb-2">What is your campaign goal?</h2>
-          <p className="dark: mb-6 max-w-lg mx-auto">
-            Describe what you want to achieve. E.g., "Bring back inactive customers with a 20% discount" or "Promote our new summer collection to high spenders."
+          <h2 className="text-lg font-bold mb-1" style={{ color:'#2D2A26' }}>What is your campaign goal?</h2>
+          <p className="text-sm mb-6 max-w-md mx-auto" style={{ color:'#7A736E' }}>
+            Describe what you want to achieve — AI will write the campaign name, subject line, message, and pick the best channel.
           </p>
-          
-          <div className="max-w-xl mx-auto relative mb-4">
-            <textarea
-              className="w-full bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-gray-700 rounded-xl p-4 focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all min-h-25 resize-none"
-              placeholder='Type your goal here...'
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-            ></textarea>
-          </div>
 
-          {error && (
-            <div className="max-w-xl mx-auto mb-4 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-              <AlertCircle size={16} />{error}
-            </div>
-          )}
+          <textarea rows={3}
+            className="w-full text-sm px-4 py-3 rounded-xl border outline-none resize-none max-w-lg mx-auto block transition-colors"
+            style={{ ...inputStyle }}
+            placeholder='e.g. "Win back inactive customers with a 20% discount"'
+            value={goal} onChange={e => setGoal(e.target.value)}
+            onFocus={e => e.target.style.borderColor='#F28C6F'}
+            onBlur={e => e.target.style.borderColor='#F1E3DA'}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleGenerate())}
+          />
 
-          <button 
-            onClick={handleGenerate}
-            disabled={loading || !goal}
-            className="bg-red-600 hover:bg-red-700   px-8 py-3 rounded-xl font-medium shadow-sm transition-all disabled:opacity-50 flex items-center mx-auto text-white"
-          >
-            {loading ? 'AI is crafting your campaign...' : (
-              <>
-                <Sparkles size={20} className="mr-2" />
-                Generate Campaign
-              </>
+          <AnimatePresence>
+            {error && (
+              <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0 }}
+                className="flex items-center justify-center gap-2 text-sm px-4 py-3 rounded-xl mt-4 max-w-lg mx-auto border"
+                style={{ background:'#FFF1E8', borderColor:'#FFD6C8', color:'#E07355' }}>
+                <AlertCircle size={15} />{error}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button onClick={handleGenerate} disabled={loading || !goal.trim()}
+            className="mt-5 flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-semibold text-white mx-auto transition-all active:scale-95 disabled:opacity-50"
+            style={{ background:'linear-gradient(135deg,#F28C6F,#E07355)' }}>
+            {loading ? (
+              <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> AI is crafting your campaign…</>
+            ) : (
+              <><Sparkles size={15} /> Generate Campaign</>
             )}
           </button>
         </div>
+
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-red-100 dark:border-gray-700 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="p-6 border-b border-red-200 dark:border-gray-700 bg-linear-to-r from-red-50 to-indigo-50 dark:from-red-800 dark:to-red-800">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium dark: mb-1 flex items-center">
-                  <Sparkles size={14} className="mr-1" /> AI Generated
-                </p>
-                <h2 className="text-2xl font-bold dark:">
-                  <input 
-                    type="text" 
-                    value={campaign.name} 
-                    onChange={e => setCampaign({...campaign, name: e.target.value})}
-                    className="bg-transparent border-none outline-none focus:ring-0 p-0 w-full"
-                  />
-                </h2>
-              </div>
-              <div className="bg-white dark:bg-gray-700 px-4 py-2 rounded-lg border border-red-200 dark:border-red-600 flex items-center">
-                <MessageSquare size={18} className="mr-2" />
-                <select 
-                  value={campaign.recommendedChannel}
-                  onChange={e => setCampaign({...campaign, recommendedChannel: e.target.value})}
-                  className="bg-transparent border-none outline-none font-medium dark:"
-                >
-                  <option value="Email">Email</option>
-                  <option value="WhatsApp">WhatsApp</option>
-                  <option value="SMS">SMS</option>
-                  <option value="RCS">RCS</option>
-                </select>
-              </div>
+        /* ── Generated campaign ── */
+        <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
+          className="rounded-2xl border overflow-hidden" style={{ background:'#fff', borderColor:'#F1E3DA' }}>
+
+          {/* Header */}
+          <div className="px-6 py-4 border-b flex items-start justify-between"
+            style={{ borderColor:'#F1E3DA', background:'linear-gradient(135deg,#FFF8F4,#FFF1E8)' }}>
+            <div className="flex items-center gap-2 mb-0.5">
+              <Sparkles size={14} style={{ color:'#F28C6F' }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color:'#F28C6F' }}>AI Generated</span>
+            </div>
+            <div className="flex items-center gap-2 border rounded-xl px-3 py-1.5"
+              style={{ borderColor:'#F1E3DA', background:'#fff' }}>
+              <MessageSquare size={14} style={{ color:'#7A736E' }} />
+              <select value={campaign.recommendedChannel}
+                onChange={e => setCampaign({ ...campaign, recommendedChannel:e.target.value })}
+                className="text-sm font-medium bg-transparent border-none outline-none" style={{ color:'#2D2A26' }}>
+                {CHANNELS.map(c => <option key={c}>{c}</option>)}
+              </select>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-5">
+            {/* Campaign name */}
             <div>
-              <label className="block text-sm font-medium dark: mb-2">Subject Line</label>
-              <input 
-                type="text"
-                className="w-full bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-gray-700 rounded-lg p-3   dark: text-white"
-                value={campaign.subjectLine}
-                onChange={e => setCampaign({...campaign, subjectLine: e.target.value})}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium dark: mb-2">Message Content</label>
-              <textarea 
-                className="w-full bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-gray-700 rounded-lg p-4   dark:  min-h-37.5 text-white"
-                value={campaign.message}
-                onChange={e => setCampaign({...campaign, message: e.target.value})}
-              ></textarea>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block" style={{ color:'#B8AFA9' }}>Campaign Name</label>
+              <div className="relative">
+                <input type="text" value={campaign.name}
+                  onChange={e => setCampaign({ ...campaign, name:e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl text-base font-bold border outline-none transition-colors pr-10"
+                  style={{ ...inputStyle, fontSize:'1.1rem' }}
+                  onFocus={e => e.target.style.borderColor='#F28C6F'}
+                  onBlur={e => e.target.style.borderColor='#F1E3DA'} />
+                <Edit3 size={14} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color:'#B8AFA9' }} />
+              </div>
             </div>
 
-            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg border border-indigo-100 dark:border-indigo-800/50">
-              <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-1">Target Audience</h3>
-              <p className="text-sm text-indigo-600 dark:text-indigo-400">{campaign.targetSegmentDescription}</p>
+            {/* Subject line */}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block" style={{ color:'#B8AFA9' }}>Subject Line</label>
+              <input type="text" value={campaign.subjectLine}
+                onChange={e => setCampaign({ ...campaign, subjectLine:e.target.value })}
+                className={inputCls} style={inputStyle}
+                onFocus={e => e.target.style.borderColor='#F28C6F'}
+                onBlur={e => e.target.style.borderColor='#F1E3DA'} />
             </div>
 
-            <div className="flex justify-end space-x-4 pt-4 border-t border-red-200 dark:border-gray-700">
+            {/* Message */}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-1.5 block" style={{ color:'#B8AFA9' }}>Message Body</label>
+              <textarea rows={5} value={campaign.message}
+                onChange={e => setCampaign({ ...campaign, message:e.target.value })}
+                className="w-full px-4 py-3 rounded-xl text-sm border outline-none resize-none transition-colors"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor='#F28C6F'}
+                onBlur={e => e.target.style.borderColor='#F1E3DA'} />
+              <p className="text-xs mt-1" style={{ color:'#B8AFA9' }}>Use [Name] as a placeholder for the customer's name.</p>
+            </div>
+
+            {/* Target audience */}
+            <div className="p-4 rounded-xl border" style={{ background:'#F0FDF4', borderColor:'#C6E8C2' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color:'#5A9A52' }}>Target Audience</p>
+              <p className="text-sm" style={{ color:'#2D6A2A' }}>{campaign.targetSegmentDescription}</p>
+            </div>
+
+            <AnimatePresence>
               {error && (
-                <div className="flex-1 flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                  <AlertCircle size={16} />{error}
-                </div>
+                <motion.div initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }}
+                  className="flex items-center gap-2 text-sm px-4 py-3 rounded-xl border"
+                  style={{ background:'#FFF1E8', borderColor:'#FFD6C8', color:'#E07355' }}>
+                  <AlertCircle size={15} />{error}
+                </motion.div>
               )}
-              <button 
-                onClick={() => setCampaign(null)}
-                className="px-6 py-2 rounded-lg font-medium hover:bg-red-100 dark: dark:hover:bg-red-700 transition-colors"
-              >
+            </AnimatePresence>
+
+            {/* Actions */}
+            <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor:'#F1E3DA' }}>
+              <button onClick={() => setCampaign(null)}
+                className="px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors"
+                style={{ borderColor:'#F1E3DA', color:'#7A736E' }}
+                onMouseEnter={e => e.currentTarget.style.background='#FFF8F4'}
+                onMouseLeave={e => e.currentTarget.style.background=''}>
                 Discard
               </button>
-              <button 
-                onClick={handleLaunch}
-                disabled={launching}
-                className="bg-red-600 hover:bg-red-700   px-8 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center disabled:opacity-50 text-white"
-              >
-                {launching ? 'Launching...' : (
-                  <>
-                    <Send size={18} className="mr-2" />
-                    Launch Campaign
-                  </>
+              <button onClick={handleLaunch} disabled={launching}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
+                style={{ background:'linear-gradient(135deg,#F28C6F,#E07355)' }}>
+                {launching ? (
+                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Launching…</>
+                ) : (
+                  <><Send size={15} /> Launch Campaign</>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
