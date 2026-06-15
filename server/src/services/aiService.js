@@ -2,42 +2,65 @@ const { GoogleGenAI, Type } = require('@google/genai');
 
 const getClient = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const MODEL = 'gemini-3.5-flash';
+const MODEL = 'gemini-2.5-flash';
 
 exports.generateMongoQueryFromPrompt = async (prompt) => {
   const client = getClient();
 
-  const responseSchema = {
-    type: Type.OBJECT,
-    properties: {
-      query: {
-        type: Type.OBJECT,
-        description: 'A valid MongoDB query object for the Customer schema.',
-      },
-    },
-    required: ['query'],
-  };
+  // Don't constrain with responseSchema here — the nested query object has
+  // dynamic keys (like $gt, $lt, field names) that a fixed schema can't describe.
+  // Instead ask for raw JSON and parse it ourselves.
+  const systemInstruction = `You are a MongoDB query generator for a CRM system.
+Convert the user's natural language request into a valid MongoDB query JSON object.
 
-  const systemInstruction = `You translate natural language marketing audience segment requests into valid MongoDB queries for Mongoose.
-Schema Context:
-Customer { name: String, email: String, phone: String, city: String, totalSpent: Number, lastOrderDate: Date (ISO String) }
-Example input: "Customers who spent more than 5000 and haven't ordered in 60 days"
-Example output: {"query": {"totalSpent": {"$gt": 5000}, "lastOrderDate": {"$lt": "2024-04-12T00:00:00.000Z"}}}
-Current Date for reference: ${new Date().toISOString()}`;
+Customer schema fields:
+- name: String
+- email: String  
+- phone: String
+- city: String
+- totalSpent: Number (total amount spent)
+- lastOrderDate: Date (ISO string, e.g. "2026-01-15T00:00:00.000Z")
+
+Rules:
+- Return ONLY a raw JSON object (the query itself), no wrapper, no explanation
+- Use MongoDB operators: $gt, $lt, $gte, $lte, $eq, $in, $regex, etc.
+- For date comparisons, calculate the date from: ${new Date().toISOString()}
+- For "inactive X days", use lastOrderDate $lt (today minus X days)
+- If no clear filter, return {}
+
+Examples:
+Input: "customers who spent more than 5000"
+Output: {"totalSpent": {"$gt": 5000}}
+
+Input: "customers inactive for 60 days"
+Output: {"lastOrderDate": {"$lt": "${new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()}"}}
+
+Input: "high spenders from Mumbai"
+Output: {"totalSpent": {"$gt": 5000}, "city": {"$regex": "Mumbai", "$options": "i"}}`;
 
   const result = await client.models.generateContent({
     model: MODEL,
     contents: `${systemInstruction}\n\nUser request: ${prompt}`,
     config: {
       responseMimeType: 'application/json',
-      responseSchema,
     },
   });
 
+  const raw = result.text.trim();
+  console.log('[AI] Raw query response:', raw);
+
   try {
-    const data = JSON.parse(result.text);
-    return data.query;
+    // Strip markdown code fences if model wraps in ```json ... ```
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    // If model returned { query: {...} } wrapper, unwrap it
+    if (parsed.query && typeof parsed.query === 'object') {
+      return parsed.query;
+    }
+    return parsed;
   } catch (err) {
+    console.error('[AI] Failed to parse query JSON:', raw);
     throw new Error('Failed to parse AI-generated query');
   }
 };
@@ -66,9 +89,14 @@ exports.generateCampaignContent = async (goal) => {
     },
   });
 
+  const raw = result.text.trim();
+  console.log('[AI] Raw campaign response:', raw);
+
   try {
-    return JSON.parse(result.text);
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    return JSON.parse(cleaned);
   } catch (err) {
+    console.error('[AI] Failed to parse campaign JSON:', raw);
     throw new Error('Failed to parse AI-generated campaign');
   }
 };
