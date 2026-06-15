@@ -38,7 +38,7 @@ const AudienceBuilder = () => {
         <div className="relative">
           <textarea
             className="w-full bg-slate-50 dark:bg-slate-700 text-black dark:text-white placeholder-slate-400 dark:placeholder-slate-400 border border-slate-200 dark:border-slate-600 rounded-lg p-4 pl-12 focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all min-h-[120px] resize-none"
-            placeholder='e.g., "Customers who spent more than ₹5000 and haven't ordered in 60 days"'
+            placeholder="e.g., 'Customers who spent more than ₹5000 and haven't ordered in 60 days'"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
