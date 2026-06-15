@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useRef, useCallback } from 'react';
-import { getCampaigns, getCampaignStats } from '../services/api';
+import { getCampaigns, getCampaignStats, deleteCampaign } from '../services/api';
 import { ThemeContext } from '../App';
-import { Megaphone, Clock, BarChart3 } from 'lucide-react';
+import { Megaphone, Clock, BarChart3, Trash2 } from 'lucide-react';
 
 const POLL_INTERVAL = 2500; // poll every 2.5s for running campaigns
 
@@ -49,14 +49,17 @@ const PulsingDot = () => (
   </span>
 );
 
-const CampaignCard = ({ campaign, onCompleted }) => {
+const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
   const [stats, setStats] = useState(campaign.stats || {
     sent: 0, delivered: 0, opened: 0, clicked: 0, converted: 0,
     failed: 0, pending: 0,
     deliveryRate: '0.0', openRate: '0.0', clickRate: '0.0', conversionRate: '0.0',
   });
   const [status, setStatus] = useState(campaign.status);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const pollRef = useRef(null);
+  const confirmTimerRef = useRef(null);
 
   const poll = useCallback(async () => {
     try {
@@ -72,11 +75,37 @@ const CampaignCard = ({ campaign, onCompleted }) => {
 
   useEffect(() => {
     if (status !== 'Running') return;
-    // immediate first fetch
     poll();
     pollRef.current = setInterval(poll, POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
-  }, [status]);  // only re-setup when status changes
+  }, [status]);
+
+  const handleDeleteClick = () => {
+    // first click shows confirm state; auto-reset after 3s if not confirmed
+    setConfirmDelete(true);
+    confirmTimerRef.current = setTimeout(() => setConfirmDelete(false), 3000);
+  };
+
+  const handleDeleteConfirm = async () => {
+    clearTimeout(confirmTimerRef.current);
+    clearInterval(pollRef.current);
+    setDeleting(true);
+    try {
+      await deleteCampaign(campaign._id);
+      if (onDeleted) onDeleted(campaign._id);
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    clearTimeout(confirmTimerRef.current);
+    setConfirmDelete(false);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => () => clearTimeout(confirmTimerRef.current), []);
 
   const isRunning = status === 'Running';
   const totalDispatched = stats.sent || 0;
@@ -85,7 +114,7 @@ const CampaignCard = ({ campaign, onCompleted }) => {
   const dispatchPct = audience > 0 ? Math.min((totalDispatched / audience) * 100, 100) : 0;
 
   return (
-    <div className="bg-white dark:bg-orange-800 rounded-xl shadow-sm border border-red-100 dark:border-gray-700 overflow-hidden flex flex-col">
+    <div className={`bg-white dark:bg-orange-800 rounded-xl shadow-sm border border-red-100 dark:border-gray-700 overflow-hidden flex flex-col transition-opacity duration-300 ${deleting ? 'opacity-40 pointer-events-none' : ''}`}>
 
       {/* Card body */}
       <div className="p-5 border-b border-red-100 dark:border-gray-700 flex-1">
@@ -178,9 +207,38 @@ const CampaignCard = ({ campaign, onCompleted }) => {
           <Megaphone size={15} className="mr-2 text-indigo-500" />
           {campaign.channel}
         </div>
-        <div className="flex items-center font-medium">
-          <BarChart3 size={15} className="mr-2" />
-          {stats.sent || campaign.audienceCount} sent
+        <div className="flex items-center gap-3">
+          <div className="flex items-center font-medium">
+            <BarChart3 size={15} className="mr-2" />
+            {stats.sent || campaign.audienceCount} sent
+          </div>
+
+          {/* Delete control */}
+          {!confirmDelete ? (
+            <button
+              onClick={handleDeleteClick}
+              title="Delete campaign"
+              className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+            >
+              <Trash2 size={15} />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 animate-fade-in">
+              <span className="text-xs text-red-500 font-medium">Delete?</span>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-2 py-1 text-xs font-semibold rounded-md bg-red-500 hover:bg-red-600 text-white transition-colors"
+              >
+                Yes
+              </button>
+              <button
+                onClick={handleDeleteCancel}
+                className="px-2 py-1 text-xs font-semibold rounded-md bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -218,6 +276,10 @@ const CampaignHistory = () => {
     setCampaigns(prev => prev.map(c => c._id === id ? { ...c, status: 'Completed' } : c));
   }, []);
 
+  const handleDeleted = useCallback((id) => {
+    setCampaigns(prev => prev.filter(c => c._id !== id));
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -238,7 +300,7 @@ const CampaignHistory = () => {
           </div>
         ) : (
           campaigns.map(c => (
-            <CampaignCard key={c._id} campaign={c} onCompleted={handleCompleted} />
+            <CampaignCard key={c._id} campaign={c} onCompleted={handleCompleted} onDeleted={handleDeleted} />
           ))
         )}
       </div>

@@ -104,6 +104,18 @@ exports.generateCampaign = async (req, res) => {
   }
 };
 
+exports.deleteCampaign = async (req, res) => {
+  try {
+    const campaign = await Campaign.findByIdAndDelete(req.params.id);
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
+    // Also clean up all communication logs for this campaign
+    await CommunicationLog.deleteMany({ campaignId: req.params.id });
+    res.json({ message: 'Campaign deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getCampaignStats = async (req, res) => {
   try {
     const campaign = await Campaign.findById(req.params.id).lean();
