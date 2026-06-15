@@ -37,7 +37,7 @@ function App() {
   return (
     <ThemeContext.Provider value={{ darkMode, setDarkMode, liveUpdates }}>
       <BrowserRouter>
-        <div className={`flex h-screen transition-colors duration-200 ${darkMode ? 'dark bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+        <div className={`flex h-screen transition-colors duration-200 ${darkMode ? 'dark bg-slate-900 text-white' : 'bg-slate-50 text-black'}`}>
           <Sidebar />
           <div className="flex-1 flex flex-col overflow-hidden">
             <Header />

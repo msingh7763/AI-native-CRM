@@ -24,8 +24,8 @@ const StatCard = ({ title, value, icon, colorClass, subtitle }) => (
   <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 card-hover">
     <div className="flex justify-between items-start">
       <div>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</p>
-        <h3 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{value}</h3>
+        <p className="text-sm font-medium text-black/60 dark:text-white/70 dark:text-black/50 dark:text-white/60 mb-1">{title}</p>
+        <h3 className="text-3xl font-bold text-black dark:text-white dark:text-white">{value}</h3>
         {subtitle && <p className="text-xs mt-2 text-emerald-600 dark:text-emerald-400 font-medium">{subtitle}</p>}
       </div>
       <div className={`p-3 rounded-xl ${colorClass}`}>{icon}</div>
@@ -79,7 +79,7 @@ const Dashboard = () => {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64 text-slate-400">Loading dashboard...</div>
+    <div className="flex items-center justify-center h-64 text-black/50 dark:text-white/60">Loading dashboard...</div>
   );
 
   const chartData = [
@@ -93,8 +93,8 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Welcome back — here's what's happening today.</p>
+          <h1 className="text-2xl font-bold text-black dark:text-white dark:text-white">Dashboard</h1>
+          <p className="text-sm text-black/60 dark:text-white/70 dark:text-black/50 dark:text-white/60 mt-1">Welcome back — here's what's happening today.</p>
         </div>
         <button
           onClick={handleGenerateData}
@@ -123,7 +123,7 @@ const Dashboard = () => {
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
-        <h2 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-5">Engagement Funnel</h2>
+        <h2 className="text-base font-semibold text-black dark:text-white dark:text-white mb-5">Engagement Funnel</h2>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>

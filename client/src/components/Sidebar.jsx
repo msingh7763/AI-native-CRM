@@ -18,7 +18,7 @@ const Sidebar = () => {
         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center mr-3 shadow-sm">
           <span className="font-bold text-white text-lg">X</span>
         </div>
-        <span className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Xeno CRM</span>
+        <span className="text-xl font-bold text-black dark:text-white dark:text-white tracking-tight">Xeno CRM</span>
       </div>
 
       {/* Nav links */}
@@ -33,7 +33,7 @@ const Sidebar = () => {
                 `flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                   isActive
                     ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                    : 'text-black dark:text-white dark:text-black/50 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                 }`
               }
             >
@@ -52,7 +52,7 @@ const Sidebar = () => {
             `flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-150 ${
               isActive
                 ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
+                : 'text-black dark:text-white dark:text-black/50 dark:text-white/60 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
             }`
           }
         >

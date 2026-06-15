@@ -151,25 +151,25 @@ const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
             <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
               status === 'Completed'
                 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
-                : 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400'
+                : 'bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-black/60 dark:text-white/70 dark:text-black/50 dark:text-white/60'
             }`}>
               {status}
             </span>
           )}
-          <span className="flex items-center text-xs font-medium text-slate-400">
+          <span className="flex items-center text-xs font-medium text-black/50 dark:text-white/60">
             <Clock size={13} className="mr-1" />
             {new Date(campaign.createdAt).toLocaleDateString()}
           </span>
         </div>
 
         {/* Title + subject */}
-        <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-1">{campaign.name}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4">{campaign.subjectLine}</p>
+        <h3 className="text-base font-bold text-black dark:text-white dark:text-white mb-1 line-clamp-1">{campaign.name}</h3>
+        <p className="text-sm text-black/60 dark:text-white/70 dark:text-black/50 dark:text-white/60 line-clamp-2 mb-4">{campaign.subjectLine}</p>
 
         {/* Dispatch progress bar — only while running */}
         {isRunning && (
           <div className="mb-4">
-            <div className="flex justify-between text-xs mb-1 text-slate-400">
+            <div className="flex justify-between text-xs mb-1 text-black/50 dark:text-white/60">
               <span>Dispatching</span>
               <span>{totalDispatched} / {audience}</span>
             </div>
@@ -199,7 +199,7 @@ const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
         </div>
 
         {isRunning && (
-          <p className="text-xs mt-3 text-slate-400">
+          <p className="text-xs mt-3 text-black/50 dark:text-white/60">
             {stats.pending > 0
               ? `⏳ ${stats.pending} pending · ${stats.delivered} delivered · ${stats.failed} failed`
               : totalDispatched > 0 ? '✓ All dispatched — waiting for receipts…' : 'Sending…'}
@@ -209,12 +209,12 @@ const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
 
       {/* Card footer */}
       <div className="bg-slate-50 dark:bg-slate-700/40 px-4 py-3 flex justify-between items-center text-sm">
-        <div className="flex items-center font-medium text-slate-600 dark:text-slate-300">
+        <div className="flex items-center font-medium text-black dark:text-white dark:text-white">
           <Megaphone size={15} className="mr-2 text-indigo-500" />
           {campaign.channel}
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center font-medium text-slate-600 dark:text-slate-300">
+          <div className="flex items-center font-medium text-black dark:text-white dark:text-white">
             <BarChart3 size={15} className="mr-2" />
             {stats.sent || campaign.audienceCount} sent
           </div>
@@ -276,19 +276,19 @@ const CampaignHistory = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Campaign History</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Track and analyze your past broadcasts.</p>
+        <h1 className="text-2xl font-bold text-black dark:text-white dark:text-white">Campaign History</h1>
+        <p className="text-sm text-black/60 dark:text-white/70 dark:text-black/50 dark:text-white/60 mt-1">Track and analyze your past broadcasts.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-3 text-center py-12 text-slate-400">Loading campaigns…</div>
+          <div className="col-span-3 text-center py-12 text-black/50 dark:text-white/60">Loading campaigns…</div>
         ) : error ? (
-          <div className="col-span-3 text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 text-slate-500">
+          <div className="col-span-3 text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 text-black/60 dark:text-white/70">
             {error}
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="col-span-3 text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 text-slate-500">
+          <div className="col-span-3 text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 text-black/60 dark:text-white/70">
             No campaigns found. Go create one!
           </div>
         ) : (
