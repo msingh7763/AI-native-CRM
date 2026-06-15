@@ -239,9 +239,7 @@ exports.debugCampaignLogs = async (req, res) => {
       summary,
       env: {
         CHANNEL_SERVICE_URL: process.env.CHANNEL_SERVICE_URL || '(not set)',
-        usingSimulator: !process.env.CHANNEL_SERVICE_URL || 
-          process.env.CHANNEL_SERVICE_URL.includes('localhost') || 
-          process.env.CHANNEL_SERVICE_URL.includes('127.0.0.1')
+        usingSimulator: !process.env.CHANNEL_SERVICE_URL
       }
     });
   } catch (error) {
@@ -333,9 +331,7 @@ exports.saveAndLaunchCampaign = async (req, res) => {
     await campaign.save();
 
     const channelServiceUrl = process.env.CHANNEL_SERVICE_URL;
-    const useExternalService = channelServiceUrl &&
-      !channelServiceUrl.includes('localhost') &&
-      !channelServiceUrl.includes('127.0.0.1');
+    const useExternalService = !!channelServiceUrl;
 
     const { clearCache } = require('../services/inMemoryCache');
 
