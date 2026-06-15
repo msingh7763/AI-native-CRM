@@ -3,7 +3,8 @@ import { getCampaigns, getCampaignStats, deleteCampaign } from '../services/api'
 import { ThemeContext } from '../App';
 import { Megaphone, Clock, BarChart3, Trash2 } from 'lucide-react';
 
-const POLL_INTERVAL = 2500; // poll every 2.5s for running campaigns
+const POLL_INTERVAL = 2500;      // poll every 2.5s while Running
+const COMPLETED_EXTRA_POLLS = 4; // after Completed, poll 4 more times to catch final callbacks
 
 /* Animates a number from its previous value to a new value */
 const AnimatedNumber = ({ value }) => {
@@ -60,24 +61,42 @@ const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
   const [deleting, setDeleting] = useState(false);
   const pollRef = useRef(null);
   const confirmTimerRef = useRef(null);
+  const extraPollsRef = useRef(0); // counts extra polls after Completed
 
   const poll = useCallback(async () => {
     try {
       const res = await getCampaignStats(campaign._id);
       setStats(res.data.stats);
+
       if (res.data.status === 'Completed' && status !== 'Completed') {
+        // Just transitioned — keep polling a few more times for straggler callbacks
         setStatus('Completed');
-        clearInterval(pollRef.current);
+        extraPollsRef.current = 0;
         if (onCompleted) onCompleted(campaign._id);
+      } else if (res.data.status === 'Completed' && status === 'Completed') {
+        // Already completed — count extra polls then stop
+        extraPollsRef.current += 1;
+        if (extraPollsRef.current >= COMPLETED_EXTRA_POLLS) {
+          clearInterval(pollRef.current);
+        }
       }
     } catch (_) { /* silent */ }
   }, [campaign._id, status, onCompleted]);
 
   useEffect(() => {
-    if (status !== 'Running') return;
-    poll();
-    pollRef.current = setInterval(poll, POLL_INTERVAL);
-    return () => clearInterval(pollRef.current);
+    // Start polling for Running campaigns, OR completed-but-zero-stats campaigns
+    if (status === 'Running') {
+      poll();
+      pollRef.current = setInterval(poll, POLL_INTERVAL);
+      return () => clearInterval(pollRef.current);
+    }
+    // Completed campaigns with 0% — poll a few times to recover stats
+    if (status === 'Completed' && parseFloat(campaign.stats?.deliveryRate || '0') === 0 && (campaign.audienceCount || 0) > 0) {
+      extraPollsRef.current = 0;
+      poll();
+      pollRef.current = setInterval(poll, POLL_INTERVAL);
+      return () => clearInterval(pollRef.current);
+    }
   }, [status]);
 
   const handleDeleteClick = () => {
@@ -108,6 +127,8 @@ const CampaignCard = ({ campaign, onCompleted, onDeleted }) => {
   useEffect(() => () => clearTimeout(confirmTimerRef.current), []);
 
   const isRunning = status === 'Running';
+  // Also show as "needs refresh" if completed but all stats are zero (old broken campaigns)
+  const isZeroCompleted = status === 'Completed' && parseFloat(stats.deliveryRate) === 0 && (stats.sent || 0) > 0;
   const totalDispatched = stats.sent || 0;
   const audience = campaign.audienceCount || 0;
   // dispatch progress: how many of the audience have been sent to channel service

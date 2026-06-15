@@ -61,44 +61,50 @@ exports.generateCampaign = async (req, res) => {
     const { goal } = req.body;
     if (!goal) return res.status(400).json({ message: 'Goal is required' });
 
-    // Fallback if no API key
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
-      const lowerGoal = goal.toLowerCase();
-      let name = "Custom Campaign";
-      let subjectLine = "Special Offer for You!";
-      let message = "Hi [Name], check out our latest offers tailored for you.";
-      let targetSegmentDescription = "Selected audience";
-      let recommendedChannel = "Email";
-
-      if (lowerGoal.includes('winback') || lowerGoal.includes('inactive')) {
-        name = "Winback Campaign";
-        subjectLine = "We miss you, [Name]!";
-        message = "Hi [Name], come back and get 20% off your next purchase.";
-        targetSegmentDescription = "Customers who haven't ordered in 60 days";
-      } else if (lowerGoal.includes('summer') || lowerGoal.includes('new collection')) {
-        name = "Summer Collection Promo";
-        subjectLine = "Ready for Summer, [Name]?";
-        message = "Hi [Name], our new summer collection is here! Grab your favorites before they sell out.";
-        targetSegmentDescription = "High spenders";
-        recommendedChannel = "WhatsApp";
-      } else if (lowerGoal.includes('discount') || lowerGoal.includes('offer')) {
-        name = "Discount Campaign";
-        subjectLine = "Exclusive Discount Inside";
-        message = "Hi [Name], here is a special discount just for you. Use code SPECIAL20 at checkout.";
-        recommendedChannel = "SMS";
+    // Try Gemini if key is set
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key') {
+      try {
+        const aiContent = await generateCampaignContent(goal);
+        return res.json(aiContent);
+      } catch (aiErr) {
+        console.warn('[AI] Gemini failed, using fallback:', aiErr.message);
+        // Fall through to hardcoded fallback below
       }
-
-      return res.json({
-        name,
-        subjectLine,
-        message,
-        recommendedChannel,
-        targetSegmentDescription
-      });
     }
 
-    const aiContent = await generateCampaignContent(goal);
-    res.json(aiContent);
+    // Fallback — keyword-based hardcoded templates
+    const lowerGoal = goal.toLowerCase();
+    let name = "Custom Campaign";
+    let subjectLine = "Special Offer for You!";
+    let message = "Hi [Name], check out our latest offers tailored for you.";
+    let targetSegmentDescription = "Selected audience";
+    let recommendedChannel = "Email";
+
+    if (lowerGoal.includes('winback') || lowerGoal.includes('inactive')) {
+      name = "Winback Campaign";
+      subjectLine = "We miss you, [Name]!";
+      message = "Hi [Name], come back and get 20% off your next purchase.";
+      targetSegmentDescription = "Customers who haven't ordered in 60 days";
+    } else if (lowerGoal.includes('summer') || lowerGoal.includes('new collection')) {
+      name = "Summer Collection Promo";
+      subjectLine = "Ready for Summer, [Name]?";
+      message = "Hi [Name], our new summer collection is here! Grab your favorites before they sell out.";
+      targetSegmentDescription = "High spenders";
+      recommendedChannel = "WhatsApp";
+    } else if (lowerGoal.includes('discount') || lowerGoal.includes('offer')) {
+      name = "Discount Campaign";
+      subjectLine = "Exclusive Discount Inside";
+      message = "Hi [Name], here is a special discount just for you. Use code SPECIAL20 at checkout.";
+      recommendedChannel = "SMS";
+    } else if (lowerGoal.includes('loyal') || lowerGoal.includes('reward') || lowerGoal.includes('vip')) {
+      name = "Loyalty Rewards";
+      subjectLine = "Exclusive Rewards Await You, [Name]!";
+      message = "Hi [Name], thank you for being a valued customer. Here's an exclusive reward just for you.";
+      targetSegmentDescription = "High value customers";
+      recommendedChannel = "Email";
+    }
+
+    return res.json({ name, subjectLine, message, recommendedChannel, targetSegmentDescription });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -111,6 +117,36 @@ exports.deleteCampaign = async (req, res) => {
     // Also clean up all communication logs for this campaign
     await CommunicationLog.deleteMany({ campaignId: req.params.id });
     res.json({ message: 'Campaign deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.debugCampaignLogs = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id).lean();
+    if (!campaign) return res.status(404).json({ message: 'Campaign not found' });
+
+    const logs = await CommunicationLog.find({ campaignId: req.params.id })
+      .select('status createdAt updatedAt')
+      .lean();
+
+    const summary = logs.reduce((acc, l) => {
+      acc[l.status] = (acc[l.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    res.json({
+      campaign: { id: campaign._id, name: campaign.name, status: campaign.status, audienceCount: campaign.audienceCount },
+      logCount: logs.length,
+      summary,
+      env: {
+        CHANNEL_SERVICE_URL: process.env.CHANNEL_SERVICE_URL || '(not set)',
+        usingSimulator: !process.env.CHANNEL_SERVICE_URL || 
+          process.env.CHANNEL_SERVICE_URL.includes('localhost') || 
+          process.env.CHANNEL_SERVICE_URL.includes('127.0.0.1')
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -137,11 +173,10 @@ exports.getCampaignStats = async (req, res) => {
     const failed = stats.Failed || 0;
     const pending = stats.Pending || 0;
 
-    // Auto-complete: only when ALL audience logs exist AND none are Pending
-    if (campaign.status === 'Running' && sent >= campaign.audienceCount && campaign.audienceCount > 0 && pending === 0) {
-      await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
-      campaign.status = 'Completed';
-    }
+    // NOTE: Do NOT auto-complete here — only simulateDelivery() marks campaigns
+    // complete, because it knows the exact moment all timers have resolved.
+    // Auto-completing here causes a race: all logs are Pending briefly between
+    // queue tasks, making pending=0 fire too early.
 
     res.json({
       status: campaign.status,
@@ -224,6 +259,10 @@ exports.saveAndLaunchCampaign = async (req, res) => {
     await campaign.save();
 
     const channelServiceUrl = process.env.CHANNEL_SERVICE_URL;
+    // Only use external channel service if URL is set AND doesn't point to localhost
+    const useExternalService = channelServiceUrl && 
+      !channelServiceUrl.includes('localhost') && 
+      !channelServiceUrl.includes('127.0.0.1');
 
     // Offload to background queue
     customers.forEach(customer => {
@@ -241,7 +280,7 @@ exports.saveAndLaunchCampaign = async (req, res) => {
           recipient = customer.phone;
         }
 
-        if (channelServiceUrl) {
+        if (useExternalService) {
           // External channel service is configured — use it
           try {
             await axios.post(channelServiceUrl, {
