@@ -164,6 +164,36 @@ exports.getCampaignStats = async (req, res) => {
   }
 };
 
+// Simulate delivery locally — same probability logic as the channel service
+// Used as fallback when CHANNEL_SERVICE_URL is not set (avoids localhost calls in production)
+const simulateDelivery = (logId) => {
+  const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds
+  setTimeout(async () => {
+    const rand = Math.random() * 100;
+    let status;
+    if      (rand < 10) status = 'Failed';
+    else if (rand < 30) status = 'Delivered';
+    else if (rand < 65) status = 'Opened';
+    else if (rand < 85) status = 'Read';
+    else if (rand < 95) status = 'Clicked';
+    else                status = 'Converted';
+
+    try {
+      const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { returnDocument: 'after' });
+      if (log) {
+        const pendingCount = await CommunicationLog.countDocuments({
+          campaignId: log.campaignId, status: 'Pending'
+        });
+        if (pendingCount === 0) {
+          await Campaign.findByIdAndUpdate(log.campaignId, { status: 'Completed' });
+        }
+      }
+    } catch (err) {
+      console.error('[Simulator] Failed to update log:', err.message);
+    }
+  }, delay);
+};
+
 exports.saveAndLaunchCampaign = async (req, res) => {
   try {
     const { name, goal, subjectLine, message, channel, targetSegment } = req.body;
@@ -178,8 +208,7 @@ exports.saveAndLaunchCampaign = async (req, res) => {
     });
     await campaign.save();
 
-    let completed = 0;
-    const total = customers.length;
+    const channelServiceUrl = process.env.CHANNEL_SERVICE_URL;
 
     // Offload to background queue
     customers.forEach(customer => {
@@ -197,34 +226,25 @@ exports.saveAndLaunchCampaign = async (req, res) => {
           recipient = customer.phone;
         }
 
-        try {
-          await axios.post(process.env.CHANNEL_SERVICE_URL || 'http://localhost:5001/api/send', {
-            logId: log._id,
-            customerId: customer._id,
-            campaignId: campaign._id,
-            channel,
-            recipient,
-            subjectLine: subjectLine,
-            message: message.replace('[Name]', customer.name)
-          });
-        } catch (err) {
-          await CommunicationLog.findByIdAndUpdate(log._id, { status: 'Failed' });
-          console.error("Failed to send to channel service:", err.message);
-        }
-
-        completed++;
-        // Mark campaign as Completed when all messages have been dispatched
-        if (completed === total) {
-          // Give a brief moment for final webhook callbacks to land
-          setTimeout(async () => {
-            const pendingCount = await CommunicationLog.countDocuments({
+        if (channelServiceUrl) {
+          // External channel service is configured — use it
+          try {
+            await axios.post(channelServiceUrl, {
+              logId: log._id,
+              customerId: customer._id,
               campaignId: campaign._id,
-              status: 'Pending'
+              channel,
+              recipient,
+              subjectLine,
+              message: message.replace('[Name]', customer.name)
             });
-            if (pendingCount === 0) {
-              await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
-            }
-          }, 5000);
+          } catch (err) {
+            await CommunicationLog.findByIdAndUpdate(log._id, { status: 'Failed' });
+            console.error('Failed to send to channel service:', err.message);
+          }
+        } else {
+          // No external channel service — simulate delivery in-process
+          simulateDelivery(log._id);
         }
       });
     });
