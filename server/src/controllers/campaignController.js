@@ -186,27 +186,31 @@ exports.retryCampaignDelivery = async (req, res) => {
     const { addToQueue } = require('../services/inMemoryQueue');
     pendingLogs.forEach(log => {
       addToQueue(async () => {
-        const delay = Math.floor(Math.random() * 1500) + 500;
-        await sleep(delay);
+        // Run simulation asynchronously so queue finishes immediately
+        (async () => {
+          const delay = Math.floor(Math.random() * 1500) + 500;
+          await sleep(delay);
 
-        const rand = Math.random() * 100;
-        let status;
-        if      (rand < 10) status = 'Failed';
-        else if (rand < 30) status = 'Delivered';
-        else if (rand < 65) status = 'Opened';
-        else if (rand < 85) status = 'Read';
-        else if (rand < 95) status = 'Clicked';
-        else                status = 'Converted';
+          const rand = Math.random() * 100;
+          let status;
+          if      (rand < 10) status = 'Failed';
+          else if (rand < 30) status = 'Delivered';
+          else if (rand < 65) status = 'Opened';
+          else if (rand < 85) status = 'Read';
+          else if (rand < 95) status = 'Clicked';
+          else                status = 'Converted';
 
-        await CommunicationLog.findByIdAndUpdate(log._id, { status });
-        clearCache('analytics_dashboard');
+          await CommunicationLog.findByIdAndUpdate(log._id, { status });
+          clearCache('analytics_dashboard');
 
-        const stillPending = await CommunicationLog.countDocuments({
-          campaignId: campaign._id, status: 'Pending',
-        });
-        if (stillPending === 0) {
-          await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
-        }
+          const stillPending = await CommunicationLog.countDocuments({
+            campaignId: campaign._id, status: 'Pending',
+          });
+          if (stillPending === 0) {
+            await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
+            clearCache('analytics_dashboard');
+          }
+        })();
       });
     });
 
@@ -352,43 +356,54 @@ exports.saveAndLaunchCampaign = async (req, res) => {
           if (channel === 'WhatsApp' || channel === 'SMS' || channel === 'RCS') {
             recipient = customer.phone;
           }
-          try {
-            await axios.post(channelServiceUrl, {
-              logId: log._id,
-              customerId: customer._id,
-              campaignId: campaign._id,
-              channel,
-              recipient,
-              subjectLine,
-              message: message.replace('[Name]', customer.name),
-            });
-          } catch (err) {
+          
+          // Trigger axios post in background without blocking the queue
+          axios.post(channelServiceUrl, {
+            logId: log._id,
+            customerId: customer._id,
+            campaignId: campaign._id,
+            channel,
+            recipient,
+            subjectLine,
+            message: message.replace('[Name]', customer.name),
+          }).catch(async (err) => {
             console.error('Channel service error:', err.message);
             await CommunicationLog.findByIdAndUpdate(log._id, { status: 'Failed' });
-          }
+            
+            // Check if campaign is fully completed on error
+            const pendingLeft = await CommunicationLog.countDocuments({
+              campaignId: campaign._id,
+              status: 'Pending',
+            });
+            if (pendingLeft === 0) {
+              await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
+              clearCache('analytics_dashboard');
+            }
+          });
         } else {
           // --- In-process simulator path ---
-          // Simulate network delay INSIDE the queue task so the await keeps
-          // the process alive — no detached setTimeout that can be garbage-collected
-          const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3s
-          await sleep(delay);
+          // Run simulation delay and status updates in background
+          (async () => {
+            const delay = Math.floor(Math.random() * 2000) + 1000; // 1-3s
+            await sleep(delay);
 
-          const status = pickDeliveryStatus();
-          await CommunicationLog.findByIdAndUpdate(log._id, { status });
-          clearCache('analytics_dashboard');
+            const status = pickDeliveryStatus();
+            await CommunicationLog.findByIdAndUpdate(log._id, { status });
+            clearCache('analytics_dashboard');
 
-          console.log(`[Sim] log ${log._id} → ${status}`);
-        }
+            console.log(`[Sim] log ${log._id} → ${status}`);
 
-        // After every message, check if campaign is fully done
-        const pendingLeft = await CommunicationLog.countDocuments({
-          campaignId: campaign._id,
-          status: 'Pending',
-        });
-        if (pendingLeft === 0) {
-          await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
-          clearCache('analytics_dashboard');
-          console.log(`[Sim] Campaign ${campaign._id} Completed`);
+            // Check if campaign is fully completed
+            const pendingLeft = await CommunicationLog.countDocuments({
+              campaignId: campaign._id,
+              status: 'Pending',
+            });
+            if (pendingLeft === 0) {
+              await Campaign.findByIdAndUpdate(campaign._id, { status: 'Completed' });
+              clearCache('analytics_dashboard');
+              console.log(`[Sim] Campaign ${campaign._id} Completed`);
+            }
+          })();
         }
       });
     });
