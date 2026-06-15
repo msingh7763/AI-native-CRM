@@ -27,8 +27,8 @@ const AudienceBuilder = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-black dark:text-white">AI Audience Builder</h1>
-        <p className="text-sm text-black/60 dark:text-white/70 mt-1">Describe your target audience in plain English, and AI will build the segment.</p>
+        <h1 className="text-2xl font-bold text-amber-500">AI Audience Builder</h1>
+        <p className="text-sm text-amber-700 mt-1">Describe your target audience in plain English, and AI will build the segment.</p>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
