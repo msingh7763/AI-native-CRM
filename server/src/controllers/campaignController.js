@@ -166,30 +166,62 @@ exports.getCampaignStats = async (req, res) => {
 
 // Simulate delivery locally — same probability logic as the channel service
 // Used as fallback when CHANNEL_SERVICE_URL is not set (avoids localhost calls in production)
+// const simulateDelivery = (logId) => {
+//   const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds
+//   setTimeout(async () => {
+//     const rand = Math.random() * 100;
+//     let status;
+//     if      (rand < 10) status = 'Failed';
+//     else if (rand < 30) status = 'Delivered';
+//     else if (rand < 65) status = 'Opened';
+//     else if (rand < 85) status = 'Read';
+//     else if (rand < 95) status = 'Clicked';
+//     else                status = 'Converted';
+
+//     try {
+//       const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { returnDocument: 'after' });
+//       if (log) {
+//         const pendingCount = await CommunicationLog.countDocuments({
+//           campaignId: log.campaignId, status: 'Pending'
+//         });
+//         if (pendingCount === 0) {
+//           await Campaign.findByIdAndUpdate(log.campaignId, { status: 'Completed' });
+//         }
+//       }
+//     } catch (err) {
+//       console.error('[Simulator] Failed to update log:', err.message);
+//     }
+//   }, delay);
+// };
 const simulateDelivery = (logId) => {
-  const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds
+  const delay = Math.floor(Math.random() * 3000) + 2000;
+
+  console.log("Simulator started for:", logId);
+
   setTimeout(async () => {
     const rand = Math.random() * 100;
+
     let status;
-    if      (rand < 10) status = 'Failed';
+    if (rand < 10) status = 'Failed';
     else if (rand < 30) status = 'Delivered';
     else if (rand < 65) status = 'Opened';
     else if (rand < 85) status = 'Read';
     else if (rand < 95) status = 'Clicked';
-    else                status = 'Converted';
+    else status = 'Converted';
 
     try {
-      const log = await CommunicationLog.findByIdAndUpdate(logId, { status }, { returnDocument: 'after' });
-      if (log) {
-        const pendingCount = await CommunicationLog.countDocuments({
-          campaignId: log.campaignId, status: 'Pending'
-        });
-        if (pendingCount === 0) {
-          await Campaign.findByIdAndUpdate(log.campaignId, { status: 'Completed' });
-        }
-      }
+      console.log("Updating", logId, "to", status);
+
+      const updatedLog = await CommunicationLog.findByIdAndUpdate(
+        logId,
+        { status },
+        { new: true } // use new:true instead
+      );
+
+      console.log("Updated Log:", updatedLog);
+
     } catch (err) {
-      console.error('[Simulator] Failed to update log:', err.message);
+      console.error("Simulator Error:", err);
     }
   }, delay);
 };
