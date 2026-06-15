@@ -1,75 +1,41 @@
-import React, { useState } from 'react';
-import { Bell, Search } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
-
-const PAGE_TITLES = {
-  '/':               { title: 'Dashboard',        sub: "Welcome back! Here's what's happening today." },
-  '/customers':      { title: 'Customers',         sub: 'Manage and explore your audience.' },
-  '/segments':       { title: 'Audience Builder',  sub: 'Build smart segments with AI.' },
-  '/campaigns/new':  { title: 'Campaign Builder',  sub: 'Create AI-powered campaigns.' },
-  '/campaigns':      { title: 'Campaign History',  sub: 'Track every campaign in real time.' },
-  '/settings':       { title: 'Settings',          sub: 'Manage preferences and data.' },
-};
+import React, { useContext } from 'react';
+import { Bell, Search, Moon, Sun } from 'lucide-react';
+import { ThemeContext } from '../App';
+import { motion } from 'framer-motion';
 
 const Header = () => {
-  const location = useLocation();
-  const [search, setSearch] = useState('');
-  const meta = PAGE_TITLES[location.pathname] || PAGE_TITLES['/'];
+  const { darkMode, setDarkMode } = useContext(ThemeContext);
 
   return (
-    <header
-      className="h-16 flex items-center justify-between px-7 border-b flex-shrink-0"
-      style={{ background: '#FFF8F4', borderColor: '#F1E3DA' }}
+    <motion.header 
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="h-16 bg-white dark:bg-orange-100 border-b border-orange-800 dark:border-red-500 flex items-center justify-between px-6 transition-colors duration-200"
     >
-      {/* Left — page title */}
-      <div>
-        <h1 className="text-base font-bold leading-none" style={{ color: '#2D2A26' }}>
-          {meta.title}
-        </h1>
-        <p className="text-xs mt-0.5" style={{ color: '#7A736E' }}>{meta.sub}</p>
+      <div className="flex items-center bg-orange-400 dark:bg-orange-800 rounded-lg px-3 py-2 w-96 transition-colors">
+        <Search size={18} className="dark: mr-2" />
+        <input 
+          type="text" 
+          placeholder="Search customers, campaigns..." 
+          className="bg-transparent border-none outline-none text-sm w-full dark:"
+        />
       </div>
 
-      {/* Right — search + bell + avatar */}
-      <div className="flex items-center gap-3">
-        {/* Search */}
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm border"
-          style={{ background: '#FFF8F4', borderColor: '#F1E3DA', width: 260 }}
+      <div className="flex items-center space-x-4">
+        <button 
+          onClick={() => setDarkMode(!darkMode)} 
+          className="p-2 hover:text-primary dark: dark:hover:text-primary rounded-full hover:bg-red-100 dark:hover:bg-olive-800 transition-colors"
         >
-          <Search size={15} style={{ color: '#B8AFA9' }} />
-          <input
-            type="text"
-            placeholder="Search customers, campaigns…"
-            className="bg-transparent border-none outline-none text-sm flex-1"
-            style={{ color: '#2D2A26' }}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Bell */}
-        <button
-          className="w-9 h-9 rounded-xl flex items-center justify-center relative transition-colors"
-          style={{ background: '#FFF8F4', border: '1px solid #F1E3DA' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#FFE8DE'}
-          onMouseLeave={e => e.currentTarget.style.background = '#FFF8F4'}
-        >
-          <Bell size={16} style={{ color: '#7A736E' }} />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full border-2 border-white"
-            style={{ background: '#F28C6F' }}
-          />
+          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
         </button>
-
-        {/* Avatar */}
-        <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm cursor-pointer"
-          style={{ background: 'linear-gradient(135deg,#F28C6F,#A8C3A0)' }}
-        >
-          XC
-        </div>
+        <button className="p-2 hover:text-primary dark: dark:hover:text-primary rounded-full hover:bg-red-100 dark:hover:bg-olive-800 transition-colors relative">
+          <Bell size={20} />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-800 rounded-full text-white"></span>
+        </button>
+        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary to-secondary border-2 border-white dark:border-gray-800 shadow-sm"></div>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

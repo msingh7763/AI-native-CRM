@@ -1,35 +1,12 @@
-import React, { useState } from 'react';
-import { Bell, Database, Check, AlertCircle, Palette, Shield } from 'lucide-react';
+import React, { useContext, useState } from 'react';
+import { ThemeContext } from '../App';
+import { motion } from 'framer-motion';
+import { Moon, Sun, Bell, Shield, Database, Check, AlertCircle } from 'lucide-react';
 import { clearAnalyticsCache } from '../services/api';
 
-const Section = ({ icon: Icon, title, subtitle, children }) => (
-  <div className="rounded-2xl border overflow-hidden" style={{ background:'#fff', borderColor:'#F1E3DA' }}>
-    <div className="px-6 py-4 border-b flex items-center gap-3" style={{ borderColor:'#F1E3DA', background:'#FFF8F4' }}>
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background:'#FFD6C8' }}>
-        <Icon size={17} style={{ color:'#F28C6F' }} />
-      </div>
-      <div>
-        <h2 className="text-sm font-bold" style={{ color:'#2D2A26' }}>{title}</h2>
-        <p className="text-xs" style={{ color:'#7A736E' }}>{subtitle}</p>
-      </div>
-    </div>
-    <div className="p-6">{children}</div>
-  </div>
-);
-
-const Toggle = ({ checked, onChange }) => (
-  <button onClick={() => onChange(!checked)}
-    className="w-11 h-6 rounded-full flex items-center px-1 transition-colors"
-    style={{ background: checked ? '#F28C6F' : '#F1E3DA' }}
-  >
-    <div className="w-4 h-4 rounded-full bg-white shadow-sm transition-transform"
-      style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
-  </button>
-);
-
 const Settings = () => {
-  const [cacheStatus, setCacheStatus] = useState(null);
-  const [notifs, setNotifs] = useState({ delivery: true, weekly: false });
+  const { darkMode, setDarkMode } = useContext(ThemeContext);
+  const [cacheStatus, setCacheStatus] = useState(null); // null, 'loading', 'success', 'error'
 
   const handleClearCache = async () => {
     setCacheStatus('loading');
@@ -37,88 +14,84 @@ const Settings = () => {
       await clearAnalyticsCache();
       setCacheStatus('success');
       setTimeout(() => setCacheStatus(null), 3000);
-    } catch {
+    } catch (err) {
       setCacheStatus('error');
       setTimeout(() => setCacheStatus(null), 3000);
     }
   };
 
   return (
-    <div className="max-w-2xl space-y-5 page-enter">
-      <div>
-        <h2 className="text-xl font-bold" style={{ color:'#2D2A26' }}>Settings</h2>
-        <p className="text-sm mt-0.5" style={{ color:'#7A736E' }}>Manage your preferences and data.</p>
-      </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto space-y-6"
+    >
+      <h1 className="text-2xl font-bold text-black">Settings</h1>
 
-      <Section icon={Palette} title="Appearance" subtitle="Customize your interface.">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium" style={{ color:'#2D2A26' }}>Theme</p>
-            <p className="text-xs mt-0.5" style={{ color:'#7A736E' }}>Light mode is active — dark mode coming soon.</p>
+      <div className="bg-white dark:bg-bg-card-dark rounded-xl shadow-sm border border-red-200 dark:border-gray-800 overflow-hidden">
+        <div className="p-6 border-b border-red-200 dark:border-gray-800">
+          <h2 className="text-lg font-semibold flex items-center">
+            <Moon className="mr-2" size={20} /> Appearance
+          </h2>
+          <p className="text-sm opacity-70 mt-1">Manage your theme preferences.</p>
+          
+          <div className="mt-4 flex items-center justify-between">
+            <span>Dark Mode</span>
+            <button 
+              onClick={() => setDarkMode(!darkMode)}
+              className={`w-12 h-6 rounded-full flex items-center transition-colors px-1 ${darkMode ? 'bg-primary' : 'bg-red-200'}`}
+            >
+              <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
           </div>
-          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background:'#FFF1E8', color:'#F28C6F' }}>
-            Light
-          </span>
         </div>
-      </Section>
 
-      <Section icon={Bell} title="Notifications" subtitle="Control your alerts.">
-        <div className="space-y-4">
-          {[
-            { key:'delivery', label:'Campaign Delivery Alerts', desc:'Get notified when campaign delivery completes.' },
-            { key:'weekly',   label:'Weekly Analytics Report',   desc:'Receive a weekly summary of campaign performance.' },
-          ].map(({ key, label, desc }) => (
-            <div key={key} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium" style={{ color:'#2D2A26' }}>{label}</p>
-                <p className="text-xs mt-0.5" style={{ color:'#7A736E' }}>{desc}</p>
-              </div>
-              <Toggle checked={notifs[key]} onChange={v => setNotifs(p => ({ ...p, [key]:v }))} />
+        <div className="p-6 border-b border-red-200 dark:border-gray-800">
+          <h2 className="text-lg font-semibold flex items-center">
+            <Bell className="mr-2" size={20} /> Notifications
+          </h2>
+          <p className="text-sm opacity-70 mt-1">Control your email and dashboard alerts.</p>
+          
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span>Campaign Delivery Alerts</span>
+              <input type="checkbox" defaultChecked className="accent-primary w-4 h-4" />
             </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section icon={Database} title="Data Management" subtitle="Manage your CRM cache and data.">
-        <div className="flex items-center gap-4">
-          <button onClick={handleClearCache} disabled={cacheStatus === 'loading'}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50"
-            style={{ background:'linear-gradient(135deg,#F28C6F,#E07355)', color:'#fff' }}>
-            <Database size={15} />
-            {cacheStatus === 'loading' ? 'Clearing…' : 'Clear Analytics Cache'}
-          </button>
-          {cacheStatus === 'success' && (
-            <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color:'#A8C3A0' }}>
-              <Check size={15} /> Cache cleared!
-            </span>
-          )}
-          {cacheStatus === 'error' && (
-            <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color:'#F28C6F' }}>
-              <AlertCircle size={15} /> Failed to clear cache.
-            </span>
-          )}
-        </div>
-        <p className="text-xs mt-3" style={{ color:'#B8AFA9' }}>
-          Analytics data is cached for 10 seconds. Clear it to force a fresh fetch from the database.
-        </p>
-      </Section>
-
-      <Section icon={Shield} title="About" subtitle="Platform information.">
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label:'Version',   value:'1.0.0' },
-            { label:'Stack',     value:'React + Express + MongoDB' },
-            { label:'AI Model',  value:'Gemini 2.5 Flash' },
-            { label:'Deployed',  value:'Vercel + Render' },
-          ].map(({ label, value }) => (
-            <div key={label} className="p-3 rounded-xl" style={{ background:'#FFF8F4', border:'1px solid #F1E3DA' }}>
-              <p className="text-xs" style={{ color:'#B8AFA9' }}>{label}</p>
-              <p className="text-sm font-semibold mt-0.5" style={{ color:'#2D2A26' }}>{value}</p>
+            <div className="flex items-center justify-between">
+              <span>Weekly Analytics Report</span>
+              <input type="checkbox" className="accent-primary w-4 h-4" />
             </div>
-          ))}
+          </div>
         </div>
-      </Section>
-    </div>
+
+        <div className="p-6">
+          <h2 className="text-lg font-semibold flex items-center">
+            <Database className="mr-2" size={20} /> Data Management
+          </h2>
+          <p className="text-sm opacity-70 mt-1">Manage your CRM data and cache.</p>
+          
+          <div className="mt-4 flex items-center">
+            <button 
+              onClick={handleClearCache}
+              disabled={cacheStatus === 'loading'}
+              className="bg-secondary text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {cacheStatus === 'loading' ? 'Clearing...' : 'Clear Analytics Cache'}
+            </button>
+            {cacheStatus === 'success' && (
+              <span className="ml-4 text-green-600 dark:text-green-400 flex items-center text-sm font-medium">
+                <Check size={16} className="mr-1" /> Cache Cleared!
+              </span>
+            )}
+            {cacheStatus === 'error' && (
+              <span className="ml-4 text-primary flex items-center text-sm font-medium">
+                <AlertCircle size={16} className="mr-1" /> Failed to clear cache
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 

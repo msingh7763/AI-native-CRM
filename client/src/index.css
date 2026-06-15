@@ -1,68 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary:      #F28C6F;
-  --color-primary-dark: #E07355;
-  --color-soft-peach:   #FFD6C8;
-  --color-sage:         #A8C3A0;
-  --color-bg:           #FFF8F4;
-  --color-sidebar:      #FFF1E8;
-  --color-card:         #FFFFFF;
-  --color-text:         #2D2A26;
-  --color-text-muted:   #7A736E;
-  --color-border:       #F1E3DA;
-  --font-sans: "Plus Jakarta Sans", "Inter", sans-serif;
+  --color-primary:  #9a3412; /* Vibrant Red */
+  --color-primary-dark: #7c2d12; /* Darker Vibrant Red */
+  --color-secondary: #f59e0b; /* Vibrant Yellow/Amber */
+  --color-secondary-light: #fbbf24; /* Lighter Yellow */
+  --color-bg-light: #ffffff; /* White */
+  --color-bg-dark: #0f172a; /* Dark Slate for contrast */
+  --color-bg-card-dark: #1e293b; /* Slightly lighter Slate for cards */
+  --color-text-light: #1e293b; /* Dark text for light mode */
+  --color-text-dark: #f8fafc; /* Light text for dark mode */
+  --font-sans: "Inter", "Roboto", "Outfit", sans-serif;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; }
 
 body {
   font-family: var(--font-sans);
-  background-color: #FFF8F4;
-  color: #2D2A26;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-light);
+  color: var(--color-text-light);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Card hover lift */
+.dark body {
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-dark);
+}
+
+/* Micro-animations and utility classes */
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, background-color 0.3s ease, border-color 0.3s ease;
 }
+
 .card-hover:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px -8px rgba(242,140,111,0.18);
-}
-
-/* Sidebar nav active */
-.nav-active {
-  background: #FFD6C8;
-  color: #E07355;
-}
-.nav-item {
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.nav-item:hover {
-  background: #FFE8DE;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #F1E3DA; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #FFD6C8; }
-
-/* Smooth page transitions */
-.page-enter { animation: fadeUp 0.3s ease forwards; }
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Recharts tooltip */
-.recharts-tooltip-wrapper .recharts-default-tooltip {
-  border-radius: 12px !important;
-  border: 1px solid #F1E3DA !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
